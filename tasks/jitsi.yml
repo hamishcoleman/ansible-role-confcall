@@ -68,7 +68,21 @@
       interfaces = { "127.0.0.1", "::1" } -- Listen only for local connections
   notify: Restart prosody
 
-# TODO: Fix "host-unknown, host:localhost" errors
+# TODO:
+# - this shows up as "changed" every run, change the implementation
+- name: get jvb secret
+  shell: grep JVB_SECRET /etc/jitsi/videobridge/config |cut -d= -f2
+  register: jvb_secret
+
+# Fix "host-unknown, host:localhost" errors in jvb.log
+- name: prosody config
+  blockinfile:
+    marker: "-- {mark} Ansible Managed Block"
+    path: "/etc/prosody/conf.avail/{{ jitsi.hostname }}.cfg.lua"
+    block: |
+        Component "jitsi-videobridge.{{ jitsi.hostname }}"
+            component_secret = "{{ jvb_secret.stdout }}"
+  notify: Restart prosody
 
 - name: videobridge REST only on localhost
   lineinfile:
