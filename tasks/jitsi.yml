@@ -151,7 +151,7 @@
 - name: Remove bad certs
   file:
     state: absent
-    path: "{{ item.path }}"
+    path: "{{ item }}"
   loop:
     - "/etc/jitsi/meet/{{ jitsi.hostname }}.crt"
     - "/etc/jitsi/meet/{{ jitsi.hostname }}.key"
