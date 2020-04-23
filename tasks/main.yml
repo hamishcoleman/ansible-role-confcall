@@ -1,0 +1,5 @@
+---
+
+- name: Optionally install jitsi
+  include_tasks: jitsi.yml
+  when: jitsi is defined

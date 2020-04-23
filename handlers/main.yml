@@ -1,0 +1,26 @@
+---
+
+- name: Restart prosody
+  service:
+    name: prosody
+    state: restarted
+
+- name: Restart jitsi-videobridge2
+  service:
+    name: jitsi-videobridge2
+    state: restarted
+
+- name: Restart jicofo
+  service:
+    name: jicofo
+    state: restarted
+
+- name: Restart nginx
+  service:
+    name: nginx
+    state: restarted
+
+- name: Restart coturn
+  service:
+    name: coturn
+    state: restarted

@@ -1,0 +1,143 @@
+---
+#
+# Largely taken from the standard jitsi installation instructions.
+# ( https://jitsi.org/downloads/ubuntu-debian-installations-instructions/ )
+#
+
+# Current best practice is to place keys in /etc/apt/trusted.gpg.d/, however
+# the apt_key module doesnt do that.
+#
+#- name: jitsi repo key
+#  apt_key:
+#    url: https://download.jitsi.org/jitsi-key.gpg.key
+#    state: present
+
+- name: jitsi repo key
+  get_url:
+    url: https://download.jitsi.org/jitsi-key.gpg.key
+    dest: /etc/apt/trusted.gpg.d/jitsi-key.asc
+
+- name: jitsi repo
+  apt_repository:
+    repo: deb https://download.jitsi.org stable/
+    state: present
+
+- name: jitsi debconf
+  debconf:
+    name: "{{ item.owner }}"
+    question: "{{ item.q }}"
+    value: "{{ item.v }}"
+    vtype: text
+  loop:
+    - owner: jitsi-meet-prosody
+      q: jitsi-videobridge/jvb-hostname
+      v: "{{ jitsi.hostname }}"
+    - owner: jitsi-meet-prosody
+      q: jitsi-meet-prosody/jvb-hostname
+      v: "{{ jitsi.hostname }}"
+    - owner: jitsi-meet-turnserver
+      q: jitsi-meet-turnserver/jvb-hostname
+      v: "{{ jitsi.hostname }}"
+    - owner: jitsi-meet-web-config
+      q: jitsi-meet/jvb-hostname'
+      v: "{{ jitsi.hostname }}"
+    - owner: jitsi-videobridge
+      q: jitsi-videobridge/jvb-hostname
+      v: "{{ jitsi.hostname }}"
+
+- name: jitsi packages
+  apt:
+    update_cache: true
+    name: jitsi-meet
+
+# hints from lwn:
+# - https://lwn.net/Articles/815751/
+# - https://community.jitsi.org/t/room-crashed-when-somebody-joined/21857/14
+- name: videobridge config hack
+  lineinfile:
+    path: /etc/jitsi/videobridge/config
+    regexp: '^JVB_OPTS='
+    line: 'JVB_OPTS="--apis=xmpp,rest"'
+  notify: Restart jitsi-videobridge2
+
+- name: prosody listen only on localhost
+  copy:
+    dest: /etc/prosody/conf.d/00interfaces.cfg.lua
+    mode: "a=r"
+    content: |
+      interfaces = { "127.0.0.1" } -- Listen only for local connections
+  notify: Restart prosody
+
+# TODO: Fix "host-unknown, host:localhost" errors
+
+- name: videobridge REST only on localhost
+  lineinfile:
+    path: /etc/jitsi/videobridge/sip-communicator.properties
+    line: org.jitsi.videobridge.rest.private.jetty.host=127.0.0.1
+  notify: Restart jitsi-videobridge2
+
+- name: jicofo REST only on localhost
+  lineinfile:
+    path: /etc/jitsi/jicofo/sip-communicator.properties
+    line: org.jitsi.jicofo.auth.jetty.host=127.0.0.1
+  notify: Restart jicofo
+
+# TODO: configure coturn?
+# /etc/turnserver.conf
+#   external-ip=
+# Restart coturn
+
+# letsencrypt
+#
+
+- name: Register with dehydrated
+  include_role:
+    name: dehydrated
+    tasks_from: client
+  vars:
+    param:
+        hostname: "{{ jitsi.hostname }}"
+
+- name: nginx dir for well-known URLs
+  file:
+    state: directory
+    path: /usr/share/jitsi-meet/.well-known/
+    mode: "a=rx"
+
+- name: nginx dir for well-known URLs link to dehydrated
+  file:
+    state: link
+    path: /usr/share/jitsi-meet/.well-known/acme-challenge
+    src: /var/lib/dehydrated/acme-challenges/
+
+- name: nginx ssl cert
+  lineinfile:
+    path: "/etc/nginx/sites-available/{{ jitsi.hostname }}.conf"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - regexp: '^    ssl_certificate /.*;'
+      line: '    ssl_certificate /var/lib/dehydrated/certs/{{ jitsi.hostname }}/cert.pem;'
+    - regexp: '^    ssl_certificate_key /.*;'
+      line: '    ssl_certificate_key /var/lib/dehydrated/certs/{{ jitsi.hostname }}/privkey.pem;'
+  notify: Restart nginx
+
+- name: coturn ssl cert
+  lineinfile:
+    path: "/etc/turnserver.conf"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - regexp: '^cert=/.*'
+      line: 'cert=/var/lib/dehydrated/certs/{{ jitsi.hostname }}/cert.pem'
+    - regexp: '^pkey=/.*;'
+      line: 'pkey=/var/lib/dehydrated/certs/{{ jitsi.hostname }}/privkey.pem;'
+  notify: Restart coturn
+
+- name: Remove bad certs
+  file:
+    state: absent
+    path: "{{ item.path }}"
+  loop:
+    - "/etc/jitsi/meet/{{ jitsi.hostname }}.crt"
+    - "/etc/jitsi/meet/{{ jitsi.hostname }}.key"
