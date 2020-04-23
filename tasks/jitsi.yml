@@ -65,7 +65,7 @@
     dest: /etc/prosody/conf.d/00interfaces.cfg.lua
     mode: "a=r"
     content: |
-      interfaces = { "127.0.0.1" } -- Listen only for local connections
+      interfaces = { "127.0.0.1", "::1" } -- Listen only for local connections
   notify: Restart prosody
 
 # TODO: Fix "host-unknown, host:localhost" errors
