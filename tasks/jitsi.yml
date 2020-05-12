@@ -97,6 +97,7 @@
   notify: Restart jicofo
 
 # TODO: configure coturn?
+# - Currently using 'simple' coturn setup with publicly visible password
 # /etc/turnserver.conf
 #   external-ip=
 # Restart coturn
@@ -144,8 +145,8 @@
   loop:
     - regexp: '^cert=/.*'
       line: 'cert=/var/lib/dehydrated/certs/{{ jitsi.hostname }}/cert.pem'
-    - regexp: '^pkey=/.*;'
-      line: 'pkey=/var/lib/dehydrated/certs/{{ jitsi.hostname }}/privkey.pem;'
+    - regexp: '^pkey=/.*'
+      line: 'pkey=/var/lib/dehydrated/certs/{{ jitsi.hostname }}/privkey.pem'
   notify: Restart coturn
 
 - name: Remove bad certs
