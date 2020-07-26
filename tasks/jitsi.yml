@@ -132,7 +132,7 @@
     line: "{{ item.line }}"
   loop:
     - regexp: '^    ssl_certificate /.*;'
-      line: '    ssl_certificate /var/lib/dehydrated/certs/{{ jitsi.hostname }}/cert.pem;'
+      line: '    ssl_certificate /var/lib/dehydrated/certs/{{ jitsi.hostname }}/fullchain.pem;'
     - regexp: '^    ssl_certificate_key /.*;'
       line: '    ssl_certificate_key /var/lib/dehydrated/certs/{{ jitsi.hostname }}/privkey.pem;'
   notify: Restart nginx
